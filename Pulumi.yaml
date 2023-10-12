@@ -1,0 +1,8 @@
+name: testing
+runtime: nodejs
+description: sdjlfkjsdf
+config:
+  aws:profile: default 
+  aws:region: us-east-1
+  webApp:cidrBlock: 10.0.0.0/16
+  webApp:destinationCidrBlock: 0.0.0.0/0
