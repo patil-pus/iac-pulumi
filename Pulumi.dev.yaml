@@ -1,5 +1,23 @@
 config:
-  aws:profile: dev
-  aws:region: us-east-1
-  webApp:cidrBlock: 10.0.0.0/16
-  webApp:destinationCidrBlock: 0.0.0.0/0
+    aws:region: us-east-1
+    aws:profile: dev
+    availabilityZoneCount: 3
+    vpcCidrBlock: "10.0.0.0/16"
+    cidrBlock: "10.0"
+    subnetSuffix: ".0/24"
+    state: "available"
+    vpcName: "my-vpc"
+    igwName: "my-igw"
+    public: "public"
+    private: "private"
+    publicsubnet: "public-sn"
+    privatesubnet: "private-sn"
+    public-rt: "public-routing-t"
+    private-rt: "private-routing-t"
+    publicRoute: "public-Route"
+    destinationCidr: "0.0.0.0/0"
+    public-route-association: "public-route-association"
+    private-route-association: "private-route-association"
+    instanceKey: "awskey"
+    amiId: "460740249339"
+
