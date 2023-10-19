@@ -1,9 +1,7 @@
 {
-    "name": "testing",
-    "main": "index.ts",
-    "devDependencies": {
-        "@types/node": "^16"
-    },
+    "name": "iac-pulumi",
+    "main": "index.js",
+   
     "dependencies": {
         "@pulumi/pulumi": "^3.0.0",
         "@pulumi/aws": "^5.0.0",
