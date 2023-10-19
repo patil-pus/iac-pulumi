@@ -20,3 +20,4 @@ config:
     private-route-association: "private-route-association"
     instanceKey: "awskey"
     amiId: "460740249339"
+
