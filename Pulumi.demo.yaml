@@ -19,5 +19,6 @@ config:
     public-route-association: "public-route-association"
     private-route-association: "private-route-association"
     instanceKey: "awskey"
-    amiId: "743136055866"
-
+    amiId: "460740249339"
+    Sec_Cidr: "0.0.0.0/0"
+    password: "Pushkar1234"

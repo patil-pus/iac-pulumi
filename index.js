@@ -9,8 +9,11 @@ const vpcCidrBlock = config.require("vpcCidrBlock");
 const cidrBlock = config.require("cidrBlock");
 const instanceKey = config.require("instanceKey");
 const amiId = config.require("amiId");
+const SecurityGroup_Cidr=config.require("Sec_Cidr");
+const Pass=config.require("password")
 
-amiId
+
+
 const publicSubnets = [];
 const privateSubnets = [];
 
@@ -36,31 +39,16 @@ const private_rt = config.require("private-rt");
 const public_Route = config.require("publicRoute");
 
 
-
-
-// Define a function to get the first N availability zones
-function getFirstNAvailabilityZones(data, n) {
-    const availableAZCount = data.names.length;
-
-    if (availableAZCount >= n) {
-        return data.names.slice(0, n);
-    }
-    else {
-
-        return data.names;
-    }
-}
-
-const availabilityZoneNames = []; // Initialize an array to store availability zone names
+const availabilityZoneNames = []; 
 
 aws.getAvailabilityZones({ state: `${state}` }).then(data => {
-    const availabilityZones = getFirstNAvailabilityZones(data, availabilityZoneCount); // Choose the first 3 AZs if available AZs are greater than 3
+    const availabilityZones = getFirstNAvailabilityZones(data, availabilityZoneCount); 
     const vpc = new aws.ec2.Vpc(`${vpcName}`, {
         cidrBlock: `${vpcCidrBlock}`,
         availabilityZones: availabilityZones,
     });
     const internetGateway = new aws.ec2.InternetGateway(`${igwName}`, {
-        vpcId: vpc.id, // Associate the Internet Gateway with the VPC
+        vpcId: vpc.id, 
     });
 
     for (let i = 0; i < availabilityZones.length; i++) {
@@ -107,18 +95,30 @@ aws.getAvailabilityZones({ state: `${state}` }).then(data => {
         },
     });
 
+    function getFirstNAvailabilityZones(data, n) {
+        const availableAZCount = data.names.length;
+    
+        if (availableAZCount >= n) {
+            return data.names.slice(0, n);
+        }
+        else {
+    
+            return data.names;
+        }
+    }
+
     const privateRouteTable = new aws.ec2.RouteTable(`${private_rt}`, {
         vpcId: vpc.id,
         tags: {
             Name: `${private_rt}`,
         },
     });
-    const publicRoute = new aws.ec2.Route(`${public_Route}`, {
+    const publicRoute = new aws.ec2.Route(`public_Route`, {
         routeTableId: publicRouteTable.id,
         destinationCidrBlock: `${destinationCidr}`,
         gatewayId: internetGateway.id,
     });
-
+    
     // Associate the public subnets with the public route table
     publicSubnets.forEach((subnet, i) => {
         new aws.ec2.RouteTableAssociation(`${public_route_association}-${subnet.availabilityZone}-${i}`, {
@@ -143,83 +143,139 @@ aws.getAvailabilityZones({ state: `${state}` }).then(data => {
 
 
     // Create an Application Security Group
+    // console.log("This is my vpc which",vpc.id);
     const applicationSecurityGroup = new aws.ec2.SecurityGroup("applicationSecurityGroup", {
         description: "Application Security Group for web applications",
+        
         vpcId: vpc.id, // Replace with your VPC ID
         ingress: [
             {
                 protocol: "tcp",
                 fromPort: 22,  // SSH
                 toPort: 22,
-                cidrBlocks: ["0.0.0.0/0"], // Allow SSH from anywhere
+                cidrBlocks: [SecurityGroup_Cidr], // Allow SSH from anywhere
             },
             {
                 protocol: "tcp",
                 fromPort: 80,  // HTTP
                 toPort: 80,
-                cidrBlocks: ["0.0.0.0/0"], // Allow HTTP from anywhere
+                cidrBlocks: [SecurityGroup_Cidr], // Allow HTTP from anywhere
             },
             {
                 protocol: "tcp",
                 fromPort: 443, // HTTPS
                 toPort: 443,
-                cidrBlocks: ["0.0.0.0/0"], // Allow HTTPS from anywhere
+                cidrBlocks: [SecurityGroup_Cidr], // Allow HTTPS from anywhere
             },
             {
                 protocol: "tcp",
                 fromPort: 3000, // Replace with your application port
                 toPort: 3000,
-                cidrBlocks: ["0.0.0.0/0"], // Allow your application traffic from anywhere
+                cidrBlocks: [SecurityGroup_Cidr], // Allow your application traffic from anywhere
             },
-        ],
+        ],egress: [
+            {
+              fromPort: 3306,      // Allow outbound traffic on port 3306
+              toPort: 3306,        // Allow outbound traffic on port 3306
+              protocol: "tcp",     // TCP protocol
+              cidrBlocks: ["0.0.0.0/0"],  // Allow all destinations
+            },
+         
+          ],
     });
 
+    const dbSecurityGroup = new aws.ec2.SecurityGroup("dbSecurityGroup", {
+        description: "RDS security group",
+        vpcId: vpc.id,
+        egress: [{
+            protocol: "-1",
+            fromPort: 0,
+            toPort: 0,
+            cidrBlocks: [SecurityGroup_Cidr],
+            // securityGroups: [applicationSecurityGroup.id]
+        }],
+        ingress: [{
+            protocol: "tcp",
+            fromPort: 3306,
+            toPort: 3306,
+            securityGroups: [applicationSecurityGroup.id], // Only allow the application servers in this security group
+        }],
+    }, { dependsOn: applicationSecurityGroup });
 
-    const instanceType = "t2.micro"; // Replace with your desired instance type
+    const instanceType = "t2.micro"; 
     const ami = pulumi.output(aws.ec2.getAmi({
         owners: [ amiId ],
         mostRecent: true,
     })).apply(result => result.id); 
-    
 
 
-    const keyName = "ec2-key"; // Replace with your EC2 key pair name
-    const sshKey = new aws.ec2.KeyPair("mySshKey", {
-        keyName: keyName,
-        publicKey: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCwEm729yoTeex/elW5Aj41W9r4jYN3uNj83mHEieGY0HYAXBHRwjZDZIkiU6afeinvwrSUfA5/PgSgKn0YV1EB6uySi5Ej4a75ZA37KS0gDGGRGObzlHIFuNVpYHlQk+3AZ4UaDqKqLASLdrJM3J6rJZDZBITKx4jyBN+c8r8zFJa2M7rLNDxIYL9cMlfd1aKZ/E1mKwqRHmHkWEH3eOsw4fZYsqZ5HewjfJ7iXT0RLfSkGlMdJS3t/4KPR2Zja7lDtn5P+yZIG01TtxmljuC0Bk6THlNjLIfXUW7VkVM9YqzLMXYeg1Q1yyzJadKKabDhKkQ5+uUDBX8tEBA1/jQRcCqvryBVdibp6XPjsLUwohO+PuAjHv0yhqipId2XK8+0ebQMW3Q7bvyqFwU7cOKPo/OWpNE0wl13aAgXN1X8BjneXOmxQ26PIeaXRwM6BpXPTme4v3UdV7ncCSf6pJYshazHMGBMGHtOdZ7LLIF0731NHnD0J9+3b8crfibkYgE= pushk@Pushkars_Laptop        ", // Replace with your public SSH key content
-        userData: `
-        #!/bin/bash
-        sudo apt-get update -y
-        sudo apt-get install -y nodejs
-        sudo DEBIAN_FRONTEND=noninteractive apt update -q
-        sudo DEBIAN_FRONTEND=noninteractive apt -q --assume-yes install mariadb-client mariadb-server
-        sudo systemctl enable mariadb
-        systemctl start mariadb
-        sudo apt install unzip
-        sudo npm install -g pm2
-        sudo apt install unzip
-        `,
+    const dbparametergroup = new aws.rds.ParameterGroup('dbparametergroup', {
+        family: 'mysql8.0', 
+        parameters: [
+            {
+                name: 'max_connections',
+                value: '100',
+            },
+        ],
     });
-    // Define the EC2 instance
+    
+    
+    const privateSubnetIds = privateSubnets.map(subnet => subnet.id);
+    const privateSubnetGroup = new aws.rds.SubnetGroup("privateSubnetGroup", {
+        subnetIds: privateSubnetIds, 
+        name: "my-private-subnet-group", 
+        //description: "Private subnet group for RDS",
+    });
 
-   
+    const dbInstance = new aws.rds.Instance("web-app-rds-instance", {
+        engine: "mysql",
+        instanceClass: "db.t2.micro",
+        allocatedStorage: 20,
+        name: "csye6225",
+        username: "csye6225",
+        //skipFinalSnapshot: true,
+        password: Pass,
+        //parameterGroupName: "default.mysqls8.0",
+        skipFinalSnapshot: true,
+        vpcSecurityGroupIds: [dbSecurityGroup.id],
+        // publiclyAccessible: false,
+        multiAz: false,
+        vpcId: vpc.id,
+        dbSubnetGroupName: privateSubnetGroup.name,
+        parameterGroupName: dbparametergroup
+        
+    },{ dependsOn: [privateSubnetGroup, dbSecurityGroup, dbparametergroup] });
+    
     const ec2Instance = new aws.ec2.Instance("myEC2Instance", {
         instanceType: instanceType,
         ami: ami,
         keyName: instanceKey,
-        vpcSecurityGroupIds: [applicationSecurityGroup.id], // Attach the Application Security Group created in the previous step
-        subnetId: publicSubnets[0].id, // Replace with the subnet ID where you want to launch the EC2 instance
+        vpcSecurityGroupIds: [applicationSecurityGroup.id], 
+        subnetId: publicSubnets[0].id, 
+        dependsOn:[dbInstance],
         rootBlockDevice: {
-            volumeSize: 30, // Size of the root EBS volume (in GB)
-            deleteOnTermination: true, // Automatically delete the root EBS volume when the EC2 instance is terminated
+            volumeSize: 25,     
+            deleteOnTermination: true
         },
+        userData: pulumi.interpolate`#!/bin/bash
+            sudo touch /home/admin/webapp/pushkar.txt
+            sudo rm -f /home/admin/webapp/.env
+            sudo touch /home/admin/webapp/.env
+            echo "MYSQL_HOST=${dbInstance.address}" | sudo tee -a /home/admin/webapp/.env > /dev/null
+            echo "MYSQL_PORT=${dbInstance.port}" | sudo tee -a /home/admin/webapp/.env > /dev/null
+            echo "MYSQL_DATABASE=${dbInstance.dbName}" | sudo tee -a /home/admin/webapp/.env > /dev/null
+            echo "MYSQL_USER=${dbInstance.username}" | sudo tee -a /home/admin/webapp/.env > /dev/null
+            echo "MYSQL_PASSWORD=${dbInstance.password}" | sudo tee -a /home/admin/webapp/.env > /dev/null
+            echo "DB_DIALECT=${dbInstance.engine}" | sudo tee -a /home/admin/webapp/.env > /dev/null
+            cat .env
+            sudo chown -R csye6225:csye6225 /home/admin/webapp
+            sudo chmod -R 750 /home/admin/webapp
+            sudo systemctl daemon-reload
+            sudo systemctl enable csye6225
+            sudo systemctl start csye6225`,
         tags: {
-            Name: "MyEC2Instance", // Replace with a suitable name
+            Name: "MyEC2Instance", 
         },
-    });
-
-
-
-
-
+    }, { dependsOn: applicationSecurityGroup });
+    
 });
