@@ -20,4 +20,6 @@ config:
     private-route-association: "private-route-association"
     instanceKey: "awskey"
     amiId: "460740249339"
-
+    Sec_Cidr: "0.0.0.0/0"
+    password: "Pushkar1234"
+    address: ""
