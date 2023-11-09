@@ -22,3 +22,8 @@ config:
     amiId: "460740249339"
     Sec_Cidr: "0.0.0.0/0"
     password: "Pushkar1234"
+    basedomain: "demo.pushkarpatil.com"
+    awsAccessKeyId: "AKIAWWRSCI35VWFV3AKK"
+    awsSecretAccessKey: "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" 
+    CLOUDWATCH_LOG_GROUP_NAME: "csye6225"
+    CLOUDWATCH_LOG_STREAM_NAME: "webapp" 
