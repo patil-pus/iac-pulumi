@@ -1,5 +1,8 @@
     const pulumi = require("@pulumi/pulumi");
     const aws = require("@pulumi/aws");
+    const { RdsDbInstance } = require("@pulumi/aws/opsworks");
+const { Script } = require("@pulumi/aws/gamelift");
+const { LoadBalancer } = require("@pulumi/aws/alb");
 
     const { RdsDbInstance } = require("@pulumi/aws/opsworks");
 const { Script } = require("@pulumi/aws/gamelift");
@@ -178,23 +181,6 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
         },{ dependsOn: [testAttach] });
      
 
-        const dbparametergroup = new aws.rds.ParameterGroup('dbparametergroup', {
-            family: 'mysql8.0', 
-            parameters: [
-                {
-                    name: 'max_connections',
-                    value: '100',
-                },
-            ],
-        });
-        
-        
-        const privateSubnetIds = privateSubnets.map(subnet => subnet.id);
-        const privateSubnetGroup = new aws.rds.SubnetGroup("privateSubnetGroup", {
-            subnetIds: privateSubnetIds, 
-            name: "my-private-subnet-group", 
-            //description: "Private subnet group for RDS",
-        });
 
         // console.log("This is my vpc which",vpc.id);
         const loadBalancerSecurityGroup = new aws.ec2.SecurityGroup("loadBalancerSecurityGroup", {
@@ -212,6 +198,7 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
                     fromPort: 443,
                     toPort: 443,
                     cidrBlocks: ["0.0.0.0/0"], 
+
                 },
             ],
             egress: [
@@ -222,6 +209,7 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
                     cidrBlocks: ["0.0.0.0/0"], 
                 },
             ],
+
         });
         
 
@@ -308,6 +296,7 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
                 },
             ],
         });
+
         
        
         
@@ -409,11 +398,9 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
         }, { dependsOn: [ec2InstanceProfile,dbInstance] } );
         
         
-        
-        
-        
-       
 
+        
+  
             const webAppTargetGroup = new aws.lb.TargetGroup("webAppTargetGroup", {
                 port: 3000,
                 protocol: "HTTP",
