@@ -532,4 +532,6 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
         }],
     }, { dependsOn: [webAppLoadBalancer] });   
 });
+
     });
+
