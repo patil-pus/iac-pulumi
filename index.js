@@ -1,10 +1,8 @@
     const pulumi = require("@pulumi/pulumi");
     const aws = require("@pulumi/aws");
-
     const { RdsDbInstance } = require("@pulumi/aws/opsworks");
 const { Script } = require("@pulumi/aws/gamelift");
 const { LoadBalancer } = require("@pulumi/aws/alb");
-
 
     const config = new pulumi.Config();
 
@@ -56,7 +54,6 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
             vpcId: vpc.id, 
         });
 
-
         for (let i = 0; i < availabilityZones.length; i++) {
             const az = availabilityZones[i];
             availabilityZoneNames.push(az);
@@ -71,7 +68,6 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
             const az = availabilityZoneNames[i];
 
             
-
             const publicSubnet = new aws.ec2.Subnet(`${public_Subnet}-${az}-${i}`, {
                 vpcId: vpc.id,
                 cidrBlock: calculateCidrBlock(i, `${publicSta}`),
@@ -126,7 +122,6 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
             gatewayId: internetGateway.id,
         });
         
-
         publicSubnets.forEach((subnet, i) => {
             new aws.ec2.RouteTableAssociation(`${public_route_association}-${subnet.availabilityZone}-${i}`, {
                 subnetId: subnet.id,
@@ -135,7 +130,6 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
                     Name: `${public_route_association}`,
                 },
             });
-
         });
 
         
@@ -147,54 +141,8 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
                     Name: `${private_route_association}`,
                 },
             });
-
         });
 
-        const iamRole = new aws.iam.Role("CloudWatchAgentRole", {
-            assumeRolePolicy: JSON.stringify({
-                Version: "2012-10-17",
-                Statement: [
-                    {
-                        Action: "sts:AssumeRole",
-                        Effect: "Allow",
-                        Principal: {
-                            Service: "ec2.amazonaws.com",
-                        },
-                    },
-                ],
-            }),
-        });
-     
-     
-        const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
-            role: iamRole.name,
-            policyArn: "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
-        },{ dependsOn: [iamRole] });
-       
-     
-        const ec2InstanceProfile = new aws.iam.InstanceProfile("ec2InstanceProfile", {
-            name: "ec2InstanceProfile", // You can choose a different name
-            role: iamRole.name, // Use the IAM role you've defined
-        },{ dependsOn: [testAttach] });
-     
-
-        const dbparametergroup = new aws.rds.ParameterGroup('dbparametergroup', {
-            family: 'mysql8.0', 
-            parameters: [
-                {
-                    name: 'max_connections',
-                    value: '100',
-                },
-            ],
-        });
-        
-        
-        const privateSubnetIds = privateSubnets.map(subnet => subnet.id);
-        const privateSubnetGroup = new aws.rds.SubnetGroup("privateSubnetGroup", {
-            subnetIds: privateSubnetIds, 
-            name: "my-private-subnet-group", 
-            //description: "Private subnet group for RDS",
-        });
 
         // console.log("This is my vpc which",vpc.id);
         const loadBalancerSecurityGroup = new aws.ec2.SecurityGroup("loadBalancerSecurityGroup", {
@@ -584,5 +532,4 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
         }],
     }, { dependsOn: [webAppLoadBalancer] });   
 });
-
     });
