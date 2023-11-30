@@ -1,11 +1,11 @@
     const pulumi = require("@pulumi/pulumi");
     const aws = require("@pulumi/aws");
     const { RdsDbInstance } = require("@pulumi/aws/opsworks");
-const { Script } = require("@pulumi/aws/gamelift");
-const { LoadBalancer } = require("@pulumi/aws/alb");
-
+    const { Script } = require("@pulumi/aws/gamelift");
+    const { LoadBalancer } = require("@pulumi/aws/alb");
+    const gcp = require("@pulumi/gcp");
     const config = new pulumi.Config();
-
+    const gcpProject = config.require("gcpproject");
 
     const availabilityZoneCount = config.getNumber("availabilityZoneCount");
     const vpcCidrBlock = config.require("vpcCidrBlock");
@@ -40,9 +40,10 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
     const public_rt = config.require("public-rt");
     const private_rt = config.require("private-rt");
     const public_Route = config.require("publicRoute");
-
+    const MAILGUN_API_KEY=config.require("MAILGUN_API_KEY")
 
     const availabilityZoneNames = []; 
+    console.log(MAILGUN_API_KEY);
 
     aws.getAvailabilityZones({ state: `${state}` }).then(data => {
         const availabilityZones = getFirstNAvailabilityZones(data, availabilityZoneCount); 
@@ -171,8 +172,10 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
                 },
             ],
         });
+        const snsTopic = new aws.sns.Topic("mySNSTopic", {
+            name: "my-sns-topic", 
+        });
         
-
 
         const applicationSecurityGroup = new aws.ec2.SecurityGroup("applicationSecurityGroup", {
             description: "Application Security Group for web applications",
@@ -246,7 +249,7 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
             owners: [ amiId ],
             mostRecent: true,
         })).apply(result => result.id); 
-
+        console.log(ami);
         const dbparametergroup = new aws.rds.ParameterGroup('dbparametergroup', {
             family: 'mysql8.0', 
             parameters: [
@@ -259,7 +262,10 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
         
        
         
-
+ 
+   
+        
+        
         const iamRole = new aws.iam.Role("CloudWatchAgentRole", {
         assumeRolePolicy: JSON.stringify({
         Version: "2012-10-17",
@@ -272,6 +278,41 @@ const { LoadBalancer } = require("@pulumi/aws/alb");
         }],
     }),
 });
+const snsPolicy = new aws.iam.Policy("snsPolicy", {
+    name: "snsPolicy",
+    policy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [{
+            Effect: "Allow",
+            Action: [
+                "sns:Publish",
+                "sns:ListTopics"
+            ],
+            Resource: "*"
+        }],
+    }),
+});
+const lambdaRole = new aws.iam.Role("lambdaRole", {
+    assumeRolePolicy: `{
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "lambda.amazonaws.com"
+            }
+        }]
+    }`,
+});
+const SNSec2PolicyAttachment = new aws.iam.RolePolicyAttachment("SNSec2PolicyAttachment", {
+    role: iamRole.name,
+    policyArn: snsPolicy.arn,
+});
+const SNSLambPolicyAttachment = new aws.iam.RolePolicyAttachment("SNSlambPolicyAttachment", {
+    role: lambdaRole.name,
+    policyArn: snsPolicy.arn,
+});
+        
     
 const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
     role: iamRole.name,
@@ -312,9 +353,10 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
     echo "MYSQL_USER=${dbInstance.username}" | sudo tee -a /home/admin/webapp/.env 
     echo "MYSQL_PASSWORD=${dbInstance.password}" | sudo tee -a /home/admin/webapp/.env 
     echo "DB_DIALECT=${dbInstance.engine}" | sudo tee -a /home/admin/webapp/.env 
-    echo "awsAccessKeyId=${config.require("awsAccessKeyId")}" | sudo tee -a /home/admin/webapp/.env 
-    echo "awsSecretAccessKey=${config.require("awsSecretAccessKey")}" | sudo tee -a /home/admin/webapp/.env 
-    echo "awsRegion= us-east-1" | sudo tee -a /home/admin/webapp/.env
+    echo "AWS_ACCESS_KEY=${config.require("awsAccessKeyId")}" | sudo tee -a /home/admin/webapp/.env 
+    echo "AWS_SECRET_KEY=${config.require("awsSecretAccessKey")}" | sudo tee -a /home/admin/webapp/.env 
+    echo "ARN=${snsTopic.arn}" | sudo tee -a /home/admin/webapp/.env 
+    echo "AWS_REGION= us-east-1" | sudo tee -a /home/admin/webapp/.env
     echo "CLOUDWATCH_LOG_GROUP_NAME=${config.require("CLOUDWATCH_LOG_GROUP_NAME")}" |  sudo tee -a /home/admin/webapp/.env
     echo "CLOUDWATCH_LOG_GROUP_NAME=${config.require("CLOUDWATCH_LOG_STREAM_NAME")}" |  sudo tee -a /home/admin/webapp/.env
     cat .env
@@ -337,9 +379,7 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
         name: "ec2InstanceProfile", 
         role: iamRole.name, 
     },{ dependsOn: [testAttach] });
- 
-    
-    
+   
     const webAppLaunchTemplate = new aws.ec2.LaunchTemplate("webAppLaunchTemplate", {
             imageId: ami,
             instanceType: instanceType,
@@ -357,11 +397,6 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
         }, { dependsOn: [ec2InstanceProfile,dbInstance] } );
         
         
-        
-        
-        
-       
-
             const webAppTargetGroup = new aws.lb.TargetGroup("webAppTargetGroup", {
                 port: 3000,
                 protocol: "HTTP",
@@ -420,7 +455,7 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
         
         
         
-        const autoScalingGroup = new aws.autoscaling.Group("myAutoScalingGroup", {
+    const autoScalingGroup = new aws.autoscaling.Group("myAutoScalingGroup", {
             launchTemplate: {
                 id: webAppLaunchTemplate.id,
                 version: webAppLaunchTemplate.latestVersion,
@@ -487,14 +522,167 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
             },
             alarmActions: [scaleDownPolicy.arn],
         });
+
+        const lambdaCloudWatchPolicy = new aws.iam.Policy("lambdaCloudWatchPolicy", {
+            policy: pulumi.interpolate`{
+                "Version": "2012-10-17",
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents"
+                    ],
+                    "Resource": "arn:aws:logs:*:*:*"
+                }]
+            }`
+        });
+        const serviceAccount = new gcp.serviceaccount.Account("my-service-account", {
+            accountId: "my-service-account",
+            displayName: "My Service Account",
+            project: gcpProject,
+        });
+        const serviceAccountKey = new gcp.serviceaccount.Key("my-service-account-key", {
+            account:    serviceAccount.name,
+            serviceAccountId: serviceAccount.name,
+            keyAlgorithm: "KEY_ALG_RSA_2048"
+        });
+
+        exports.secretkeyaccess=pulumi.secret(serviceAccountKey.privateKey)
+        const bucket = new gcp.storage.Bucket("Backet", {
+        name: "bucket-new-pushkar",
+        location: "us-east1", 
+    });
+        exports.bucketName = bucket.bucket;
+
+    const bucketIAMBinding = new gcp.storage.BucketIAMBinding("my-bucket-iam", {
+            bucket: bucket.name,
+            role: "roles/storage.admin",
+            members: [serviceAccount.email.apply(email => `serviceAccount:${email}`)],
+        });
         
         
+
+        new aws.iam.RolePolicyAttachment("lambdaCloudWatchPolicyAttachment", {
+            role: lambdaRole.name,
+            policyArn: lambdaCloudWatchPolicy.arn,
+        });
         
         
-       
+        new aws.iam.RolePolicyAttachment("lambdaPolicyAttachment", {
+            role: lambdaRole.name,
+            policyArn: aws.iam.ManagedPolicy.AWSLambdaBasicExecutionRole,
+        });
+            
+    const tableName = "emailsSent";
+
+    
+const dynamoDbTable = new aws.dynamodb.Table("dynamoDbTable", {
+    attributes: [
+        {
+            name: "emailId",
+            type: "S",
+        },
+        {
+            name: "emailDetails",
+            type: "S",
+        },
+        {
+            name: "sentAt",
+            type: "S",
+        }
+    ],
+    hashKey: "emailId",
+    billingMode: "PAY_PER_REQUEST",
+    globalSecondaryIndexes: [
+        {
+            name: "emailDetails",
+            hashKey: "emailDetails",
+            projectionType: "ALL",
+        },
+        {
+            name: "sentAt",
+            hashKey: "sentAt",
+            projectionType: "ALL",
+        }
+    ],
+    tags: {
+        Name: "EmailsSent",
+        Environment: "Production",
+    },
+});
+
+
+
+
+
+    
+        const dynamoTableName = dynamoDbTable.name;
+        const emailsSentTablePolicy = new aws.iam.Policy("emailsSentTablePolicy", {
+            policy: {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "dynamodb:GetItem",
+                            "dynamodb:PutItem",
+                            "dynamodb:UpdateItem",
+                            "dynamodb:BatchWriteItem",
+                            "dynamodb:Query",
+                            "dynamodb:Scan",
+                            "dynamodb:DeleteItem"          
+                        ],
+                        "Resource": "*"
+                    }
+          ]
+        },
+          });
+        
+        const submissionLambda = new aws.lambda.Function("submissionLambda", {
+            code: new pulumi.asset.AssetArchive({
+                ".": new pulumi.asset.FileArchive("C:/Users/pushk/OneDrive/Desktop/Serverless/serverless_fork/Serverless.zip"),
+            }),
+            packageType: "Zip",
+            runtime: "nodejs18.x",
+            role: lambdaRole.arn,
+            handler: "Serverless/index.handler",
+            environment: { 
+                variables: {
+                    GOOGLE_CLIENT_EMAIL:"pushkar.patil1269@gmail.com",
+                    GOOGLE_ACCESS_KEY: serviceAccountKey.privateKey.apply(key => Buffer.from(key, 'base64').toString('ascii')),
+                    BUCKET_NAME: bucket.name,
+                    SNS_TOPIC_ARN: snsTopic.arn, 
+                    MAILGUN_API_KEY: MAILGUN_API_KEY,
+                    Domain_Name: config.require("rootdomain"),
+                    dynamoTableName:dynamoTableName
+                },
+        
+            }
+        });
+
+        const dynamoEmailPolicyAttachment = new aws.iam.RolePolicyAttachment("dynamoEmailPolicyAttachment", {
+            role: lambdaRole.name,
+            policyArn: emailsSentTablePolicy.arn,
+        });
+        
+        const lambdaSubscription = new aws.sns.TopicSubscription("lambdaSubscription", {
+            topic: snsTopic.arn,
+            protocol: "lambda",
+            endpoint: submissionLambda.arn,
+            
+        });
      
-
-
+        new aws.lambda.Permission("lambdaPermission", {
+            action: "lambda:InvokeFunction",
+            function: submissionLambda.name,
+            principal: "sns.amazonaws.com",
+            sourceArn: snsTopic.arn,
+        });
+        console.log(
+            
+        );
+        
 
         
         
