@@ -4,6 +4,7 @@
     const { Script } = require("@pulumi/aws/gamelift");
     const { LoadBalancer } = require("@pulumi/aws/alb");
     const gcp = require("@pulumi/gcp");
+
     const config = new pulumi.Config();
     const gcpProject = config.require("gcpproject");
 
@@ -720,4 +721,6 @@ const dynamoDbTable = new aws.dynamodb.Table("dynamoDbTable", {
         }],
     }, { dependsOn: [webAppLoadBalancer] });   
 });
+
     });
+
