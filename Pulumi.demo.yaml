@@ -1,6 +1,7 @@
 config:
     aws:region: us-east-1
     aws:profile: demo
+    gcp:project: elite-firefly-406505
     availabilityZoneCount: 3
     vpcCidrBlock: "10.0.0.0/16"
     cidrBlock: "10.0"
@@ -27,3 +28,8 @@ config:
     awsSecretAccessKey: "QrA+qZu1FV4HjqE7MwHvfFAeYLhpRQdpG2m1Q4Wo" 
     CLOUDWATCH_LOG_GROUP_NAME: "csye6225"
     CLOUDWATCH_LOG_STREAM_NAME: "webapp" 
+    gcpproject: elite-firefly-406505
+    iac-pulumi:gcpproject: elite-firefly-406505
+    iac-pulumi:MAILGUN_API_KEY: 4ec8604eb368727f8983d67d768930b3-30b58138-7e37e305
+    iac-pulumi:rootdomain: pushkarpatil.com
+    iac-pulumi:basedomain: demo.pushkarpatil.com
