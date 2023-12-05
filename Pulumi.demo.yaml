@@ -34,3 +34,4 @@ config:
     iac-pulumi:rootdomain: pushkarpatil.com
     iac-pulumi:basedomain: demo.pushkarpatil.com
     iac-pulumi:sslcerti: arn:aws:acm:us-east-1:743136055866:certificate/b49ebd90-ce10-4293-bcf4-ac9cb0bb6562
+
