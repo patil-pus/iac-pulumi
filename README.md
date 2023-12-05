@@ -88,3 +88,9 @@ Explain how to destroy IaaS resources when they are no longer needed:
 
 - Run the `pulumi destroy` command.
 - Include a caution about the irreversible nature of this action.
+
+
+
+## To setup SSL
+
+- aws acm import-certificate   --certificate fileb://demo_pushkarpatil_com.pem.crt --private-key fileb://privatekey.pem.txt --certificate-chain fileb://demo_pushkarpatil_com.pem.ca-bundle
