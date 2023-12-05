@@ -381,6 +381,7 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
     },{ dependsOn: [testAttach] });
    
     const webAppLaunchTemplate = new aws.ec2.LaunchTemplate("webAppLaunchTemplate", {
+            name:"Launch_Temp",
             imageId: ami,
             instanceType: instanceType,
             keyName: instanceKey,
@@ -456,6 +457,7 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
         
         
     const autoScalingGroup = new aws.autoscaling.Group("myAutoScalingGroup", {
+            name:"auto_scaling_group",
             launchTemplate: {
                 id: webAppLaunchTemplate.id,
                 version: webAppLaunchTemplate.latestVersion,
@@ -550,7 +552,7 @@ const testAttach = new aws.iam.RolePolicyAttachment("testAttach", {
 
         exports.secretkeyaccess=pulumi.secret(serviceAccountKey.privateKey)
         const bucket = new gcp.storage.Bucket("Backet", {
-        name: "bucket-new-pushkar",
+        name: "bucket-new-pushka",
         location: "us-east1", 
     });
         exports.bucketName = bucket.bucket;
@@ -644,6 +646,8 @@ const dynamoDbTable = new aws.dynamodb.Table("dynamoDbTable", {
                 ".": new pulumi.asset.FileArchive("C:/Users/pushk/OneDrive/Desktop/Serverless/serverless_fork/Serverless.zip"),
             }),
             packageType: "Zip",
+            timeout: 20,
+            memorySize: 256,
             runtime: "nodejs18.x",
             role: lambdaRole.arn,
             handler: "Serverless/index.handler",
@@ -703,6 +707,18 @@ const dynamoDbTable = new aws.dynamodb.Table("dynamoDbTable", {
         //         Name: "MyEC2Instance", 
         //     },
         // }, { dependsOn: applicationSecurityGroup });
+        const webAppHttpsListener = new aws.lb.Listener("webAppHttpsListener", {
+            loadBalancerArn: webAppLoadBalancer.arn,
+            port: 443,
+            protocol: "HTTPS",
+            sslPolicy: "ELBSecurityPolicy-2016-08", 
+            certificateArn: config.require("sslcerti"), 
+            defaultActions: [{
+                type: "forward",
+                targetGroupArn: webAppTargetGroup.arn,
+            }],
+        },{dependsOn:[ webAppLoadBalancer]}
+        );
 
         const baseDomainName = config.require("basedomain"); 
         const zonePromise = aws.route53.getZone({ name: baseDomainName }, { async: true });

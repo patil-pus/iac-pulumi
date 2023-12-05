@@ -24,8 +24,8 @@ config:
     Sec_Cidr: "0.0.0.0/0"
     password: "Pushkar1234"
     basedomain: "demo.pushkarpatil.com"
-    awsAccessKeyId: "AKIAWWRSCI35VWFV3AKK"
-    awsSecretAccessKey: "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" 
+    awsAccessKeyId: "AKIA22BS4KI5EBVG3LVY"
+    awsSecretAccessKey: "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" 
     CLOUDWATCH_LOG_GROUP_NAME: "csye6225"
     CLOUDWATCH_LOG_STREAM_NAME: "webapp" 
     gcpproject: elite-firefly-406505
@@ -33,3 +33,4 @@ config:
     iac-pulumi:MAILGUN_API_KEY: 4ec8604eb368727f8983d67d768930b3-30b58138-7e37e305
     iac-pulumi:rootdomain: pushkarpatil.com
     iac-pulumi:basedomain: demo.pushkarpatil.com
+    iac-pulumi:sslcerti: arn:aws:acm:us-east-1:743136055866:certificate/b49ebd90-ce10-4293-bcf4-ac9cb0bb6562
