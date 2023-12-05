@@ -33,3 +33,5 @@ config:
   iac-pulumi:gcpproject: dev-webapp-406505
   iac-pulumi:MAILGUN_API_KEY: 4ec8604eb368727f8983d67d768930b3-30b58138-7e37e305
   iac-pulumi:rootdomain: pushkarpatil.com
+  iac-pulumi:sslcerti: arn:aws:acm:us-east-1:460740249339:certificate/993b9ecf-df78-4729-9721-67a583a1afa4
+
