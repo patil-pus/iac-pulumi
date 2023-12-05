@@ -4,7 +4,6 @@
     const { Script } = require("@pulumi/aws/gamelift");
     const { LoadBalancer } = require("@pulumi/aws/alb");
     const gcp = require("@pulumi/gcp");
-
     const config = new pulumi.Config();
     const gcpProject = config.require("gcpproject");
 
@@ -650,6 +649,8 @@ const dynamoDbTable = new aws.dynamodb.Table("dynamoDbTable", {
                 ".": new pulumi.asset.FileArchive("C:/Users/pushk/OneDrive/Desktop/Serverless/serverless_fork/Serverless.zip"),
             }),
             packageType: "Zip",
+            timeout: 20,
+            memorySize: 256,
             runtime: "nodejs18.x",
             role: lambdaRole.arn,
             handler: "Serverless/index.handler",
@@ -787,6 +788,4 @@ const dynamoDbTable = new aws.dynamodb.Table("dynamoDbTable", {
         }],
     }, { dependsOn: [webAppLoadBalancer] });   
 });
-
     });
-
